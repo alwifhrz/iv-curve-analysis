@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,8 +12,8 @@ from PIL import Image
 st.set_page_config(page_title="I-V Curve Explorer", layout="wide")
 
 # --- LOAD DATA ---
-PARQUET_PATH = Path(r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\iv-database-1.parquet")
-LOGO_PATH = r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\img\logo cpi.jpg"
+PARQUET_PATH = Path("iv-database-1.parquet")
+LOGO_PATH = "logo cpi.jpg"
 
 @st.cache_data
 def load_data(path):
@@ -49,7 +48,7 @@ serial_list = sorted(df[df["Site_Name"] == site_selected]["Serial_Number"].uniqu
 serial_selected = st.sidebar.selectbox("Pilih Serial Number:", serial_list)
 
 date_list = sorted(df[(df["Site_Name"] == site_selected) & 
-                      (df["Serial_Number"] == serial_selected)]["Date"].unique())
+                    (df["Serial_Number"] == serial_selected)]["Date"].unique())
 date_selected = st.sidebar.selectbox("Pilih Tanggal:", date_list)
 
 # --- FILTER DATA ---
