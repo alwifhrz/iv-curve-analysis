@@ -1,5 +1,6 @@
 streamlit
 pandas
-pyarrow
+numpy
 plotly
+pyarrow
 Pillow
