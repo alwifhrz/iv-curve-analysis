@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -166,4 +167,3 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption(f"Powered by Operation & Maintenance - Cahaya Power Indonesia | {site_selected}")
