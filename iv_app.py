@@ -42,14 +42,14 @@ if df is None:
 # --- SIDEBAR FILTERING ---
 st.sidebar.header("📊 Filter Site")
 site_list = sorted(df["Site_Name"].unique())
-site_selected = st.sidebar.selectbox("Pilih Site:", site_list)
+site_selected = st.sidebar.selectbox("Site:", site_list)
 
 serial_list = sorted(df[df["Site_Name"] == site_selected]["Serial_Number"].unique())
-serial_selected = st.sidebar.selectbox("Pilih Serial Number:", serial_list)
+serial_selected = st.sidebar.selectbox("Serial Number:", serial_list)
 
 date_list = sorted(df[(df["Site_Name"] == site_selected) & 
                     (df["Serial_Number"] == serial_selected)]["Date"].unique())
-date_selected = st.sidebar.selectbox("Pilih Tanggal:", date_list)
+date_selected = st.sidebar.selectbox("Date:", date_list)
 
 # --- FILTER DATA ---
 dff = df[
@@ -114,7 +114,7 @@ def render_plotly_combined(df_file):
 def render_plotly_grid(df_file):
     pvs = sorted(df_file["PV_Input"].unique(), key=_pv_sort_key)
     n = len(pvs)
-    cols = 3 # Tetapkan jumlah kolom agar lebih rapi di web
+    cols = 3 
     rows = ceil(n / cols)
 
     fig = make_subplots(
@@ -166,3 +166,4 @@ else:
 
 # Footer
 st.markdown("---")
+st.caption(f"Powered by Operation & Maintenance Team - Cahaya Power Indonesia | {site_selected}")
