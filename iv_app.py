@@ -12,8 +12,8 @@ from PIL import Image
 st.set_page_config(page_title="I-V Curve Explorer", layout="wide")
 
 # --- LOAD DATA ---
-PARQUET_PATH = Path(r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\iv-database-1.parquet")
-LOGO_PATH = r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\logo cpi.jpg"
+PARQUET_PATH = Path("iv-database-1.parquet")
+LOGO_PATH = "logo cpi.jpg"
 
 @st.cache_data
 def load_data(path):
