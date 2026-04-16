@@ -12,8 +12,8 @@ from PIL import Image
 st.set_page_config(page_title="I-V Curve Explorer", layout="wide")
 
 # --- LOAD DATA ---
-PARQUET_PATH = Path("iv-database-1.parquet")
-LOGO_PATH = "logo cpi.jpg"
+PARQUET_PATH = Path(r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\iv-database-1.parquet")
+LOGO_PATH = r"C:\Users\Lenovo\Documents\Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\logo cpi.jpg"
 
 @st.cache_data
 def load_data(path):
@@ -39,23 +39,28 @@ if df is None:
     st.error(f"File database tidak ditemukan: {PARQUET_PATH}")
     st.stop()
 
-# --- SIDEBAR FILTERING ---
-st.sidebar.header("📊 Filter Site")
-site_list = sorted(df["Site_Name"].unique())
+# --- SIDEBAR FILTERING (HIERARKI: TANGGAL -> SITE -> SERIAL) ---
+st.sidebar.header("📅 Filter Data")
+
+# 1. Pilih Tanggal (dari seluruh data)
+all_dates = sorted(df["Date"].unique())
+date_selected = st.sidebar.selectbox("Tanggal:", all_dates)
+
+# 2. Filter Site berdasarkan tanggal yang dipilih
+df_by_date = df[df["Date"] == date_selected]
+site_list = sorted(df_by_date["Site_Name"].unique())
 site_selected = st.sidebar.selectbox("Site:", site_list)
 
-serial_list = sorted(df[df["Site_Name"] == site_selected]["Serial_Number"].unique())
+# 3. Filter Serial Number berdasarkan tanggal dan site
+df_by_date_site = df_by_date[df_by_date["Site_Name"] == site_selected]
+serial_list = sorted(df_by_date_site["Serial_Number"].unique())
 serial_selected = st.sidebar.selectbox("Serial Number:", serial_list)
 
-date_list = sorted(df[(df["Site_Name"] == site_selected) & 
-                    (df["Serial_Number"] == serial_selected)]["Date"].unique())
-date_selected = st.sidebar.selectbox("Date:", date_list)
-
-# --- FILTER DATA ---
+# --- FILTER DATA FINAL ---
 dff = df[
+    (df["Date"] == date_selected) &
     (df["Site_Name"] == site_selected) & 
-    (df["Serial_Number"] == serial_selected) & 
-    (df["Date"] == date_selected)
+    (df["Serial_Number"] == serial_selected)
 ].copy()
 
 # --- HEADER ---
@@ -70,10 +75,13 @@ except:
     st.title("I-V Curve Analysis")
 
 # --- METRICS ---
-col1, col2, col3 = st.columns(3)
-col1.metric("PV Inputs", dff["PV_Input"].nunique())
-col2.metric("Max Voltage", f"{round(dff['Voltage_V'].max(), 2)} V")
-col3.metric("Max Current", f"{round(dff['Current_A'].max(), 2)} A")
+if not dff.empty:
+    col1, col2, col3 = st.columns(3)
+    col1.metric("PV Inputs", dff["PV_Input"].nunique())
+    col2.metric("Max Voltage", f"{round(dff['Voltage_V'].max(), 2)} V")
+    col3.metric("Max Current", f"{round(dff['Current_A'].max(), 2)} A")
+else:
+    st.info("Tidak ada data untuk filter yang dipilih.")
 
 st.divider()
 
@@ -100,7 +108,6 @@ def render_plotly_combined(df_file):
         ))
 
     fig.update_layout(
-        # title=f"Combined IV Curves | {serial_selected}",
         xaxis_title="Voltage (V)",
         yaxis_title="Current (A)",
         legend_title="PV Input",
