@@ -33,8 +33,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- CONFIG PATHS ---
-PARQUET_PATH = Path("iv-database-1.parquet")
-LOGO_PATH    = "logo cpi.jpg"
+PARQUET_PATH = Path(r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\iv-database-1.parquet")
+LOGO_PATH    = r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\logo cpi.jpg"
 
 # --- RENDERER ---
 def render_status_text(severity, message):
@@ -156,10 +156,6 @@ if global_pool is None:
 
 @st.cache_data
 def learn_parameters_from_global_pool(_pool):
-    """
-    Pelajari semua parameter deteksi dari distribusi global
-    seluruh PV string (PV1–PVx, semua site, semua serial).
-    """
     drops  = _pool["max_slope_drops"]
     accels = _pool["peak_accels"]
     vars_  = _pool["slope_vars"]
@@ -167,45 +163,26 @@ def learn_parameters_from_global_pool(_pool):
     n_pts  = _pool["n_points"]
     N      = _pool["n_total"]
 
-    # ── HISTORICAL WINDOW ──────────────────────────────────────
-    # Gunakan median jumlah observasi per sesi × faktor coverage
-    # Target: cover ~80% dari total observasi tersedia
     n_window = int(np.clip(np.percentile(np.arange(1, N + 1), 80), 50, N))
-
-    # ── TIER THRESHOLDS ────────────────────────────────────────
-    # Tier full  : setidaknya 1% dari pool global
-    # Tier partial: setidaknya 0.3% dari pool global
     tier_full_min    = max(30,  int(np.ceil(0.010 * N)))
     tier_partial_min = max(10,  int(np.ceil(0.003 * N)))
 
-    # ── FALLBACK VALUES ────────────────────────────────────────
-    # Fallback = median distribusi global (nilai "normal" populasi)
     fallback_slope_change = float(np.median(drops))
     fallback_accel_z      = float(np.median(accels))
-    fallback_pen_factor   = 1.0   # dipertahankan netral
+    fallback_pen_factor   = 1.0
 
-    # ── PARTIAL DAMPING ────────────────────────────────────────
-    # Ukur dispersi relatif distribusi slope drop
-    # CV rendah → distribusi sempit → damping lebih kecil (lebih percaya data)
     cv_drops      = float(np.std(drops) / (np.mean(drops) + 1e-9))
     partial_damping = float(np.clip(0.3 + 0.4 * cv_drops, 0.3, 0.7))
 
-    # ── SLOPE CHANGE PERCENTILE ────────────────────────────────
-    # Cari percentile yang memisahkan ekor distribusi:
-    # Target: ambang batas di mana hanya ~10% kurva dianggap anomali
-    # Gunakan distribusi aktual untuk mencari "elbow" di CDF
     sorted_drops = np.sort(drops)
     cdf          = np.arange(1, N + 1) / N
-    # Elbow: titik dengan perubahan kemiringan CDF maksimum
     if N > 20:
         d2    = np.gradient(np.gradient(cdf, sorted_drops + 1e-9), sorted_drops + 1e-9)
         elbow = int(np.argmax(np.abs(d2[5:-5])) + 5)
         slope_change_pct = float(np.clip(cdf[elbow] * 100, 75, 95))
     else:
-        slope_change_pct = 85.0  # fallback minimal
+        slope_change_pct = 85.0
 
-    # ── ACCEL Z PERCENTILE ─────────────────────────────────────
-    # Sama, tapi untuk distribusi peak acceleration Z-score
     sorted_accels = np.sort(accels)
     if N > 20:
         d2_a    = np.gradient(np.gradient(cdf, sorted_accels + 1e-9), sorted_accels + 1e-9)
@@ -214,38 +191,32 @@ def learn_parameters_from_global_pool(_pool):
     else:
         accel_z_pct = 94.0
 
-    # ── IQR CAP MULTIPLIER ─────────────────────────────────────
-    # Seberapa jauh batas atas sebelum dianggap outlier ekstrem
-    # Gunakan rasio P95/P75 distribusi slope drop sebagai proxy kurtosis
     p75_d, p95_d = np.percentile(drops, [75, 95])
-    iqr_d        = p75_d - np.percentile(drops, 25)
+    iqr_d         = p75_d - np.percentile(drops, 25)
     if iqr_d > 1e-9:
         tail_ratio    = (p95_d - p75_d) / iqr_d
         iqr_cap_mult  = float(np.clip(tail_ratio, 1.0, 3.0))
     else:
         iqr_cap_mult = 1.5
 
-    # ── MERGE VOLTAGE FRACTION ────────────────────────────────
-    # Seberapa dekat dua step harus digabung (relatif terhadap V range)
-    # Gunakan resolusi median titik data: median(V_range / n_points)
     resolution   = float(np.median(vrng / (n_pts + 1e-9)))
     median_vrange= float(np.median(vrng))
     merge_v_frac = float(np.clip(resolution / (median_vrange + 1e-9) * 3, 0.02, 0.08))
 
     return {
-        "n_window":            n_window,
-        "tier_full_min":       tier_full_min,
-        "tier_partial_min":    tier_partial_min,
+        "n_window":               n_window,
+        "tier_full_min":          tier_full_min,
+        "tier_partial_min":       tier_partial_min,
         "fallback_slope_change": fallback_slope_change,
-        "fallback_accel_z":    fallback_accel_z,
+        "fallback_accel_z":       fallback_accel_z,
         "fallback_pen_factor": fallback_pen_factor,
         "partial_damping":     partial_damping,
-        "slope_change_pct":    slope_change_pct,
-        "accel_z_pct":         accel_z_pct,
-        "iqr_cap_mult":        iqr_cap_mult,
-        "merge_v_frac":        merge_v_frac,
+        "slope_change_pct":     slope_change_pct,
+        "accel_z_pct":          accel_z_pct,
+        "iqr_cap_mult":         iqr_cap_mult,
+        "merge_v_frac":         merge_v_frac,
         "n_total":             N,
-        "median_v_range":      median_vrange,
+        "median_v_range":       median_vrange,
     }
 
 LEARNED = learn_parameters_from_global_pool(global_pool)
@@ -276,10 +247,6 @@ def _iqr_robust_percentile(arr, pct):
     return float(np.percentile(clipped, pct))
 
 def get_adaptive_thresholds():
-    """
-    Hitung threshold adaptif dari distribusi global pool.
-    Semua nilai berasal dari pembelajaran data aktual.
-    """
     base = {
         "min_slope_change": FALLBACK_SLOPE_CHANGE,
         "accel_z_thresh":   FALLBACK_ACCEL_Z,
@@ -331,272 +298,151 @@ def get_adaptive_thresholds():
         }
 
 # ============================================================
-# STEP DETECTION
+# STEP DETECTION & FEATURE EXTRACTION & HYBRID
 # ============================================================
+# (Fungsi-fungsi pendukung tetap sama)
 
 def detect_steps_self_contained(v, slope, z_accel, min_slope_change, accel_z_thresh, merge_radius):
     n          = len(slope)
-    if n < 10:
-        return []
+    if n < 10: return []
     slope_diff = np.abs(np.diff(slope))
     candidates = np.where(slope_diff > min_slope_change)[0]
-
     steps = []
     for idx in candidates:
-        if idx < 2 or idx > n - 3:
-            continue
+        if idx < 2 or idx > n - 3: continue
         lo, hi = max(0, idx - 1), min(n, idx + 3)
         if np.max(np.abs(z_accel[lo:hi])) > accel_z_thresh:
             steps.append(float((v[idx] + v[min(idx + 1, n - 1)]) / 2.0))
-
-    if not steps:
-        return []
+    if not steps: return []
     steps.sort()
     merged = [steps[0]]
     for s in steps[1:]:
-        if s - merged[-1] > merge_radius:
-            merged.append(s)
+        if s - merged[-1] > merge_radius: merged.append(s)
     return merged
 
-
 def binary_segmentation_change_points(signal, min_seg_len=4, pen_factor=1.0):
-    n       = len(signal)
-    if n < 2 * min_seg_len:
-        return []
+    n = len(signal)
+    if n < 2 * min_seg_len: return []
     sig_var = np.var(signal)
-    if sig_var < 1e-12:
-        return []
-
+    if sig_var < 1e-12: return []
     penalty = pen_factor * np.log(max(n, 2)) * sig_var
-
-    def _cost(seg):
-        return float(np.sum((seg - np.mean(seg)) ** 2))
-
+    def _cost(seg): return float(np.sum((seg - np.mean(seg)) ** 2))
     def _best_split(start, end):
-        if end - start < 2 * min_seg_len:
-            return None, 0.0
-        base             = _cost(signal[start:end])
+        if end - start < 2 * min_seg_len: return None, 0.0
+        base = _cost(signal[start:end])
         best_idx, best_r = None, 0.0
         for i in range(start + min_seg_len, end - min_seg_len + 1):
             r = base - _cost(signal[start:i]) - _cost(signal[i:end])
-            if r > best_r:
-                best_r, best_idx = r, i
+            if r > best_r: best_r, best_idx = r, i
         return best_idx, best_r
-
     cps, segments = [], [(0, n)]
     while segments:
-        s, e   = segments.pop(0)
+        s, e = segments.pop(0)
         idx, r = _best_split(s, e)
         if idx is not None and r > penalty:
             cps.append(idx)
             segments += [(s, idx), (idx, e)]
     return sorted(cps)
 
-# ============================================================
-# FEATURE EXTRACTION
-# ============================================================
-
 def extract_gradient_features(v, i):
-    """
-    Ekstrak gradient features satu kurva I-V.
-    Z-score historis dihitung terhadap distribusi GLOBAL pool
-    (semua PV string, semua site/serial).
-    """
-    if len(v) < 8 or np.all(i == 0):
-        return None
-
-    n      = len(i)
+    if len(v) < 8 or np.all(i == 0): return None
+    n = len(i)
     window = max(5, min(int(n / 10), 25))
-    if window % 2 == 0:
-        window += 1
-
-    try:
-        i_sm = savgol_filter(i, window_length=window, polyorder=2)
-    except Exception:
-        i_sm = i.copy()
-
-    i_max   = float(np.max(i_sm))
-    if i_max <= 0:
-        return None
+    if window % 2 == 0: window += 1
+    try: i_sm = savgol_filter(i, window_length=window, polyorder=2)
+    except: i_sm = i.copy()
+    i_max = float(np.max(i_sm))
     v_range = float(v[-1] - v[0])
-    if v_range < 1.0:
-        return None
-
+    if i_max <= 0 or v_range < 1.0: return None
     slope = np.gradient(i_sm, v)
     accel = np.gradient(slope, v)
-
-    slope_var      = float(np.var(slope))
-    sd             = np.diff(slope)
+    slope_var = float(np.var(slope))
+    sd = np.diff(slope)
     max_slope_drop = float(np.max(-sd)) if len(sd) else 0.0
-
     trim = max(2, int(0.05 * len(accel)))
     core = accel[trim:-trim]
     if len(core) > 5:
-        mad        = np.median(np.abs(core - np.median(core)))
-        z_accel    = (accel - np.median(core)) / (1.4826 * mad + 1e-9)
+        mad = np.median(np.abs(core - np.median(core)))
+        z_accel = (accel - np.median(core)) / (1.4826 * mad + 1e-9)
         peak_accel = float(np.max(np.abs(z_accel)))
     else:
-        z_accel    = np.zeros_like(accel)
-        peak_accel = 0.0
-
-    # Z-score terhadap distribusi GLOBAL pool
-    hist_z_slope_drop = 0.0
-    hist_z_peak_accel = 0.0
+        z_accel = np.zeros_like(accel); peak_accel = 0.0
+    hist_z_slope_drop = hist_z_peak_accel = 0.0
     n_use = min(HISTORICAL_WINDOW, global_pool["n_total"])
     if n_use >= TIER_PARTIAL_MIN:
-        r_drops = global_pool["max_slope_drops"][-n_use:]
-        r_peaks = global_pool["peak_accels"][-n_use:]
+        r_drops = global_pool["max_slope_drops"][-n_use:]; r_peaks = global_pool["peak_accels"][-n_use:]
         hist_z_slope_drop = (max_slope_drop - np.mean(r_drops)) / (np.std(r_drops) + 1e-9)
-        hist_z_peak_accel = (peak_accel     - np.mean(r_peaks)) / (np.std(r_peaks) + 1e-9)
-
-    return {
-        "v":                 v,
-        "i":                 i_sm,
-        "i_max":             i_max,
-        "v_range":           v_range,
-        "slope":             slope,
-        "accel":             accel,
-        "z_accel":           z_accel,
-        "slope_var":         slope_var,
-        "max_slope_drop":    max_slope_drop,
-        "peak_accel":        peak_accel,
-        "hist_z_slope_drop": hist_z_slope_drop,
-        "hist_z_peak_accel": hist_z_peak_accel,
-        "feat_vector":       [slope_var, max_slope_drop, peak_accel,
-                              hist_z_slope_drop, hist_z_peak_accel],
-    }
-
-# ============================================================
-# HYBRID DETECTION
-# ============================================================
+        hist_z_peak_accel = (peak_accel - np.mean(r_peaks)) / (np.std(r_peaks) + 1e-9)
+    return {"v": v, "i": i_sm, "i_max": i_max, "v_range": v_range, "slope": slope, "accel": accel, "z_accel": z_accel, "slope_var": slope_var, "max_slope_drop": max_slope_drop, "peak_accel": peak_accel, "hist_z_slope_drop": hist_z_slope_drop, "hist_z_peak_accel": hist_z_peak_accel, "feat_vector": [slope_var, max_slope_drop, peak_accel, hist_z_slope_drop, hist_z_peak_accel]}
 
 def detect_stepped_curves_hybrid(df_current):
     results = {}
-    thr         = get_adaptive_thresholds()
-    min_sc      = thr["min_slope_change"]
-    accel_z     = thr["accel_z_thresh"]
-    pen         = thr["pen_factor"]
-    tier        = thr["tier"]
-    mean_vr     = thr["mean_v_range"]
+    thr = get_adaptive_thresholds()
+    min_sc = thr["min_slope_change"]; accel_z = thr["accel_z_thresh"]; pen = thr["pen_factor"]; tier = thr["tier"]; mean_vr = thr["mean_v_range"]
     is_adaptive = tier in ("full", "partial")
-
-    pvs         = df_current["PV_Input"].unique()
-    feat_matrix = []
-    valid_pvs   = []
-    temp_data   = {}
-
+    pvs = df_current["PV_Input"].unique(); feat_matrix = []; valid_pvs = []; temp_data = {}
     for p in pvs:
-        sub  = (df_current[df_current["PV_Input"] == p]
-                .dropna(subset=["Voltage_V", "Current_A"])
-                .sort_values("Voltage_V"))
+        sub = (df_current[df_current["PV_Input"] == p].dropna(subset=["Voltage_V", "Current_A"]).sort_values("Voltage_V"))
         feat = extract_gradient_features(sub["Voltage_V"].values, sub["Current_A"].values)
         if feat:
-            feat_matrix.append(feat["feat_vector"])
-            valid_pvs.append(p)
-            temp_data[p] = feat
+            feat_matrix.append(feat["feat_vector"]); valid_pvs.append(p); temp_data[p] = feat
         else:
-            results[p] = {
-                "severity":        "No Data",
-                "details":         "Insufficient data points.",
-                "step_positions":  [],
-                "slope_profile_v": [],
-                "slope_profile_s": [],
-            }
-
-    if not feat_matrix:
-        return results, min_sc, accel_z, is_adaptive
-
-    use_ml   = len(feat_matrix) >= 6
-    ml_preds = np.ones(len(valid_pvs), dtype=int)
+            results[p] = {"severity": "No Data", "details": "Insufficient data points.", "step_positions": [], "slope_profile_v": [], "slope_profile_s": []}
+    if not feat_matrix: return results, min_sc, accel_z, is_adaptive
+    use_ml = len(feat_matrix) >= 6; ml_preds = np.ones(len(valid_pvs), dtype=int)
     if use_ml:
-        X        = StandardScaler().fit_transform(np.array(feat_matrix))
-        iso      = IsolationForest(contamination="auto", random_state=42, n_estimators=120)
-        ml_preds = iso.fit_predict(X)
-
+        X = StandardScaler().fit_transform(np.array(feat_matrix))
+        ml_preds = IsolationForest(contamination="auto", random_state=42, n_estimators=120).fit_predict(X)
     for idx, p in enumerate(valid_pvs):
-        feat    = temp_data[p]
-        ml_anom = bool(ml_preds[idx] == -1) if use_ml else False
-
+        feat = temp_data[p]; ml_anom = bool(ml_preds[idx] == -1) if use_ml else False
         merge_r = max(2.0, MERGE_VOLTAGE_FRACTION * (feat["v_range"] if feat["v_range"] > 0 else mean_vr))
-
-        min_seg  = max(3, int(0.015 * len(feat["v"])))
-        cps_idx  = binary_segmentation_change_points(feat["slope"], min_seg_len=min_seg, pen_factor=pen)
-        seg_steps= [float(feat["v"][i]) for i in cps_idx if 0 <= i < len(feat["v"])]
-
-        sc_steps = detect_steps_self_contained(
-            feat["v"], feat["slope"], feat["z_accel"],
-            min_sc, accel_z, merge_r,
-        )
-
-        all_cands = sorted(set(seg_steps + sc_steps))
-        validated = []
+        min_seg = max(3, int(0.015 * len(feat["v"])))
+        seg_steps = [float(feat["v"][i]) for i in binary_segmentation_change_points(feat["slope"], min_seg_len=min_seg, pen_factor=pen) if 0 <= i < len(feat["v"])]
+        sc_steps = detect_steps_self_contained(feat["v"], feat["slope"], feat["z_accel"], min_sc, accel_z, merge_r)
+        all_cands = sorted(set(seg_steps + sc_steps)); validated = []
         for pos in all_cands:
-            i_v      = int(np.argmin(np.abs(feat["v"] - pos)))
-            lo       = max(0, i_v - 1)
-            hi       = min(len(feat["slope"]) - 1, i_v + 1)
-            delta    = float(np.max(np.abs(np.diff(feat["slope"][lo:hi + 2]))))
+            i_v = int(np.argmin(np.abs(feat["v"] - pos)))
+            delta = float(np.max(np.abs(np.diff(feat["slope"][max(0, i_v - 1):min(len(feat["slope"]) - 1, i_v + 1) + 2]))))
             accel_ok = float(np.max(np.abs(feat["z_accel"][max(0, i_v - 1):i_v + 2]))) > accel_z
-            slope_ok = delta > min_sc
-            if accel_ok and slope_ok:
-                validated.append(pos)
-
+            if accel_ok and delta > min_sc: validated.append(pos)
         if validated:
-            validated.sort()
-            merged = [validated[0]]
+            validated.sort(); merged = [validated[0]]
             for s in validated[1:]:
-                if s - merged[-1] > merge_r:
-                    merged.append(s)
+                if s - merged[-1] > merge_r: merged.append(s)
             validated = merged
-
-        has_step     = len(validated) > 0
-        is_hist_anom = (
-            is_adaptive and
-            (abs(feat["hist_z_slope_drop"]) > 2.2 or abs(feat["hist_z_peak_accel"]) > 2.2)
-        )
-
-        if has_step and (is_hist_anom or ml_anom):
-            severity = "Stepped"
-        elif has_step:
-            severity = "Warning"
-        else:
-            severity = "Normal"
-
-        msg  = f"Step detected: {len(validated)} points. "
-        msg += f"Δslope: {min_sc:.4f} A/V, Z-accel: {accel_z:.2f}"
-        if not is_adaptive:
-            msg += f" | Fallback (obs global < {MIN_SAMPLES_REQUIRED})"
-
-        results[p] = {
-            "severity":        severity,
-            "details":         msg,
-            "step_positions":  validated,
-            "slope_profile_v": feat["v"].tolist(),
-            "slope_profile_s": feat["slope"].tolist(),
-        }
-
+        is_hist_anom = is_adaptive and (abs(feat["hist_z_slope_drop"]) > 2.2 or abs(feat["hist_z_peak_accel"]) > 2.2)
+        severity = "Stepped" if (len(validated) > 0 and (is_hist_anom or ml_anom)) else ("Warning" if len(validated) > 0 else "Normal")
+        msg = f"Step detected: {len(validated)} points. Δslope: {min_sc:.4f} A/V, Z-accel: {accel_z:.2f}"
+        if not is_adaptive: msg += f" | Fallback (obs global < {MIN_SAMPLES_REQUIRED})"
+        results[p] = {"severity": severity, "details": msg, "step_positions": validated, "slope_profile_v": feat["v"].tolist(), "slope_profile_s": feat["slope"].tolist()}
     return results, min_sc, accel_z, is_adaptive
 
 # ============================================================
-# UI
+# UI (MODIFIED FILTER HIERARCHY)
 # ============================================================
 
 def _pv_sort_key(pv):
     m = re.search(r"\d+", str(pv))
     return (int(m.group(0)) if m else 0, str(pv))
 
-# --- SIDEBAR ---
+# --- SIDEBAR (Updated Hierarchy) ---
 st.sidebar.header("📅 Data Filter")
-all_dates       = sorted(df_full["Date"].unique())
-date_selected   = st.sidebar.selectbox("Date:", all_dates)
-df_by_date      = df_full[df_full["Date"] == date_selected]
 
-site_list       = sorted(df_by_date["Site_Name"].unique())
-site_selected   = st.sidebar.selectbox("Site:", site_list)
-df_by_date_site = df_by_date[df_by_date["Site_Name"] == site_selected]
+# 1. SITE NAME FIRST
+site_list = sorted(df_full["Site_Name"].unique())
+site_selected = st.sidebar.selectbox("Site:", site_list)
+df_by_site = df_full[df_full["Site_Name"] == site_selected]
 
-serial_list     = sorted(df_by_date_site["Serial_Number"].unique())
+# 2. SERIAL NUMBER SECOND
+serial_list = sorted(df_by_site["Serial_Number"].unique())
 serial_selected = st.sidebar.selectbox("Serial Number:", serial_list)
+df_by_site_sn = df_by_site[df_by_site["Serial_Number"] == serial_selected]
 
+# 3. DATE THIRD
+date_list = sorted(df_by_site_sn["Date"].unique())
+date_selected = st.sidebar.selectbox("Date:", date_list)
+
+# Final selection for the main content
 dff = df_full[
     (df_full["Date"]          == date_selected) &
     (df_full["Site_Name"]     == site_selected) &
