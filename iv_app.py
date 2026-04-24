@@ -12,7 +12,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="I-V Curve Explorer", layout="wide")
+st.set_page_config(page_title="I-V Curve Analysis", layout="wide")
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -33,8 +33,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- CONFIG PATHS ---
-PARQUET_PATH = Path(r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\iv-database-1.parquet")
-LOGO_PATH    = r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\logo cpi.jpg"
+PARQUET_PATH = Path("iv-database-1.parquet")
+LOGO_PATH    = "logo cpi.jpg"
 
 # --- RENDERER ---
 def render_status_text(severity, message):
