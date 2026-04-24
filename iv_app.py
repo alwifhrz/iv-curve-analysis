@@ -33,8 +33,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- CONFIG PATHS ---
-PARQUET_PATH = Path(r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\iv-database-1.parquet")
-LOGO_PATH    = r"C:\Users\alwi_fahrozi\OneDrive - Banpu Public Company Limited\Operation & Maintenance - IV_CURVE\scraping_iv_curve\iv_app_repo\logo cpi.jpg"
+PARQUET_PATH = Path("iv-database-1.parquet")
+LOGO_PATH    = "logo cpi.jpg"
 
 # --- RENDERER ---
 def render_status_text(severity, message):
@@ -418,14 +418,14 @@ def detect_stepped_curves_hybrid(df_current):
     return results, min_sc, accel_z, is_adaptive
 
 # ============================================================
-# UI (MODIFIED FILTER HIERARCHY)
+# UI
 # ============================================================
 
 def _pv_sort_key(pv):
     m = re.search(r"\d+", str(pv))
     return (int(m.group(0)) if m else 0, str(pv))
 
-# --- SIDEBAR (Updated Hierarchy) ---
+# --- SIDEBAR ---
 st.sidebar.header("📅 Data Filter")
 
 # 1. SITE NAME FIRST
